@@ -2,7 +2,8 @@ import os
 import requests
 # Optional: from dotenv import load_dotenv; load_dotenv()
 
-api_key = os.getenv("fish_f572a80be57c61a26a4f5875b4a9040781abc59cb0c183285babd656b701aeb5")
+api_key = os.getenv("AQ.Ab8RN6JeXqjAGRlkQ5hGShcR1HOF92ZMOlnyKS3dVtNa9y-Szg
+")
 
 headers = {
     "Authorization": f"Bearer {api_key}",
