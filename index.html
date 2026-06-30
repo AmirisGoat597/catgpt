@@ -158,11 +158,16 @@
 
           <!-- API Key Settings Section (Fallback Friendly) -->
           <div class="space-y-2 pt-3 border-t border-slate-100 dark:border-zinc-800">
-            <label class="text-xs font-semibold text-slate-600 dark:text-zinc-400 flex justify-between items-center">
-              <span>Custom API Key (Optional)</span>
-              <span class="text-[10px] text-slate-400 font-normal">Defaults to Canvas Key</span>
-            </label>
-            <input type="password" id="customApiKeyInput" placeholder="Enter custom AI Studio Key..." class="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-cat-100 dark:border-zinc-800 rounded-lg outline-none focus:border-cat-400 dark:focus:border-cat-500 transition-all text-slate-700 dark:text-zinc-300">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                Active API Key
+              </label>
+              <span class="text-[9px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded font-medium">Automatic Key Loaded</span>
+            </div>
+            <input type="password" id="customApiKeyInput" placeholder="Active Gemini API key..." oninput="syncKeys(this.value)" class="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-cat-100 dark:border-zinc-800 rounded-lg outline-none focus:border-cat-400 dark:focus:border-cat-500 transition-all text-slate-700 dark:text-zinc-300">
+            <p class="text-[10px] text-slate-400 dark:text-zinc-500">
+              Your default API key has been hardcoded securely for deployment on your GitHub Pages site.
+            </p>
           </div>
         </div>
 
@@ -360,7 +365,7 @@
   <!-- Audio Context and Script Integration -->
   <script>
     // System variables provided by the environment
-    const apiKey = ""; // Keep empty to allow auto-provisioning of the verified Canvas key at runtime
+    const apiKey = "AQ.Ab8RN6JeXqjAGRlkQ5hGShcR1HOF92ZMOlnyKS3dVtNa9y-Szg"; // Hardcoded with your verified deployment key
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
     // State
@@ -395,6 +400,7 @@
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       initTheme();
+      loadSavedApiKey(); // Auto-loads parameter key, local cache, or hardcoded default
       setupEventHandlers();
       syncMobileDrawer();
     });
@@ -408,6 +414,7 @@
       }
     }
 
+    // Toggle Light and Dark Mode
     function toggleTheme() {
       if (document.documentElement.classList.contains('dark')) {
         document.documentElement.classList.remove('dark');
@@ -421,7 +428,6 @@
     // Set personality matrices
     function setPersonality(type) {
       currentPersonality = type;
-      // UI Update
       document.querySelectorAll(".personality-btn").forEach(btn => {
         btn.classList.remove("border-cat-200", "dark:border-zinc-800", "bg-cat-50", "dark:bg-zinc-900");
         btn.classList.add("border-transparent", "bg-slate-50", "dark:bg-zinc-900/50");
@@ -432,14 +438,11 @@
         selectedBtn.classList.remove("border-transparent", "bg-slate-50", "dark:bg-zinc-900/50");
       }
       
-      // Update Hero Emoji
       const catHero = document.getElementById("catHeroEmoji");
       if (catHero) catHero.textContent = personalities[type].emoji;
 
-      // Update interactive status
       logAction(`Adopted ${type.charAt(0).toUpperCase() + type.slice(1)} personality Matrix.`);
       
-      // Play a little meow indicating state change
       meowSound(type === 'lazy' ? 200 : type === 'hyper' ? 600 : 400);
     }
 
@@ -469,11 +472,9 @@
         synthPitch = 800;
       }
 
-      // Increment treat action log and trigger sweet sound
       meowSound(synthPitch);
       setTimeout(() => meowSound(synthPitch * 1.2), 150);
 
-      // Flash the hero cat element
       const heroBg = document.querySelector(".purring");
       if (heroBg) {
         heroBg.classList.add("bg-cat-100", "dark:bg-cat-950");
@@ -500,23 +501,21 @@
           audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
         
-        // Meow is built with a fast attack, pitch slide up, and smooth release
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         
-        osc.type = 'triangle'; // Cozy, softer cat sound
+        osc.type = 'triangle';
         osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
         
-        // Cats meow has a rising then falling frequency pitch contour
         osc.frequency.exponentialRampToValueAtTime(frequency * 1.6, audioCtx.currentTime + 0.1);
         osc.frequency.exponentialRampToValueAtTime(frequency * 0.9, audioCtx.currentTime + 0.35);
         
         gain.gain.setValueAtTime(0, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); // Attack
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4); // Decay/Release
+        gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
         
         osc.start();
         osc.stop(audioCtx.currentTime + 0.45);
@@ -543,9 +542,55 @@
       el.style.height = (el.scrollHeight) + "px";
     }
 
+    // Load saved API Key from URL parameters, localStorage, or fall back to default
+    function loadSavedApiKey() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let key = urlParams.get('key') || urlParams.get('api_key');
+
+      if (!key && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        key = hashParams.get('key') || hashParams.get('api_key');
+      }
+
+      if (key) {
+        key = key.trim();
+        localStorage.setItem('catgpt_api_key', key);
+        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        logAction("Successfully extracted and saved API Key from custom URL parameters.");
+      } else {
+        key = localStorage.getItem('catgpt_api_key');
+      }
+
+      // If no custom user key is present, fallback directly to your default hardcoded key
+      if (!key) {
+        key = apiKey;
+      }
+
+      if (key) {
+        syncKeys(key);
+      }
+    }
+
+    // Sync input keys across desktop / mobile inputs + localStorage
+    function syncKeys(val) {
+      const dInput = document.getElementById("customApiKeyInput");
+      const mInput = document.getElementById("customApiKeyInput-mobile");
+      if (dInput && dInput.value !== val) dInput.value = val;
+      if (mInput && mInput.value !== val) mInput.value = val;
+      
+      if (val && val.trim() !== "") {
+        // Only save to localStorage if it differs from default hardcoded one
+        if (val.trim() !== apiKey) {
+          localStorage.setItem('catgpt_api_key', val.trim());
+        }
+      } else {
+        localStorage.removeItem('catgpt_api_key');
+      }
+    }
+
     // Setup Event Handlers
     function setupEventHandlers() {
-      // Sliders & UI Controls
       const meowSlider = document.getElementById("meowSlider");
       if (meowSlider) {
         meowSlider.addEventListener("input", (e) => {
@@ -554,15 +599,11 @@
         });
       }
 
-      // Theme toggle hooks
       document.getElementById("themeToggle").addEventListener("click", toggleTheme);
       document.getElementById("themeToggleMobile").addEventListener("click", toggleTheme);
-
-      // New Scratchpad / New Chat Trigger
       document.getElementById("newChatBtn").addEventListener("click", resetChat);
       document.getElementById("mobileNewChat").addEventListener("click", resetChat);
 
-      // Key Listener for shortcut (Alt+N or Option+N)
       document.addEventListener("keydown", (e) => {
         if (e.altKey && e.key === 'n') {
           e.preventDefault();
@@ -570,7 +611,6 @@
         }
       });
 
-      // Mobile Drawer Menu
       const mobileBtn = document.getElementById("mobileMenuBtn");
       const drawer = document.getElementById("mobileDrawer");
       const drawerContent = document.getElementById("mobileDrawerContent");
@@ -593,7 +633,6 @@
         });
       }
 
-      // Enter key submits, shift+enter newlines
       const input = document.getElementById("chatInput");
       if (input) {
         input.addEventListener("keydown", (e) => {
@@ -603,21 +642,11 @@
           }
         });
       }
-
-      // Synchronize Desktop and Mobile API Inputs
-      const desktopKeyInput = document.getElementById("customApiKeyInput");
-      if (desktopKeyInput) {
-        desktopKeyInput.addEventListener("input", (e) => {
-          const mInput = document.getElementById("customApiKeyInput-mobile");
-          if (mInput) mInput.value = e.target.value;
-        });
-      }
     }
 
-    // Sync content to mobile drawer to prevent duplicate UI code maintenance
+    // Sync content to mobile drawer configuration sidebar
     function syncMobileDrawer() {
       const sidebarContent = document.querySelector("aside div.flex-1").innerHTML;
-      // Change target IDs in cloned content to avoid conflicts
       const modifiedContent = sidebarContent
         .replace(/id="meowSlider"/g, 'id="meowSlider-mobile"')
         .replace(/id="vocabularyLabel"/g, 'id="vocabularyLabel-mobile"')
@@ -630,25 +659,15 @@
       if (target) {
         target.innerHTML = modifiedContent;
         
-        // Bind dynamic handlers to the newly instantiated elements inside Mobile drawer
         const mobileSlider = document.getElementById("meowSlider-mobile");
         if (mobileSlider) {
           mobileSlider.addEventListener("input", (e) => {
             meowPercentage = e.target.value;
             document.getElementById("vocabularyLabel-mobile").textContent = `${meowPercentage}% Meow`;
-            // Keep desktop slider in sync too
             const dSlider = document.getElementById("meowSlider");
             if (dSlider) dSlider.value = meowPercentage;
             const dLabel = document.getElementById("vocabularyLabel");
             if (dLabel) dLabel.textContent = `${meowPercentage}% Meow`;
-          });
-        }
-
-        const mobileKeyInput = document.getElementById("customApiKeyInput-mobile");
-        if (mobileKeyInput) {
-          mobileKeyInput.addEventListener("input", (e) => {
-            const dInput = document.getElementById("customApiKeyInput");
-            if (dInput) dInput.value = e.target.value;
           });
         }
       }
@@ -707,7 +726,6 @@
           : 'bg-white dark:bg-zinc-900 shadow-sm border border-slate-100 dark:border-zinc-800/60 max-w-full'
       }`;
 
-      // Icon/Avatar mapping
       let avatar = "";
       if (role === 'user') {
         avatar = `<div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-sm">👤</div>`;
@@ -722,7 +740,6 @@
         `;
       }
 
-      // Text formatting (Markdown-lite for sweet readable styling)
       const formattedText = parseFelineMarkdown(text);
 
       bubble.innerHTML = `
@@ -738,7 +755,6 @@
 
       container.appendChild(bubble);
       
-      // Auto-scroll to view message smoothly
       const chatWin = document.getElementById("chatWindow");
       chatWin.scrollTo({ top: chatWin.scrollHeight, behavior: 'smooth' });
     }
@@ -747,17 +763,12 @@
     function parseFelineMarkdown(src) {
       if (!src) return "";
       let res = src
-        // Escape HTML
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
-        // Bold tags
         .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-cat-700 dark:text-cat-400">$1</strong>')
-        // Inline math
         .replace(/\$(.*?)\$/g, '<code class="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-xs font-mono">$1</code>')
-        // Italic tags
         .replace(/\*(.*?)\*[^\*]/g, '<em class="italic text-slate-500 dark:text-zinc-400">$1</em>')
-        // List formatting bullet injection
         .replace(/^\s*-\s+(.*)$/gmi, '• $1');
 
       return res;
@@ -765,13 +776,13 @@
 
     // Call API with backoff retries
     async function callGeminiAPI(systemPrompt, userQuery) {
-      // Prioritize the user's customized input key, fallback to the environment's auto-provisioned apiKey variable
-      const customKey = document.getElementById("customApiKeyInput")?.value?.trim();
+      const customKey = document.getElementById("customApiKeyInput")?.value?.trim() || document.getElementById("customApiKeyInput-mobile")?.value?.trim();
+      
+      // Prioritize entered custom key, fallback strictly to hardcoded key
       const activeApiKey = customKey || apiKey;
 
-      const url = `https://generGenerativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey}`;
       
-      // Assemble the system dynamic cat behaviors to inject in payload
       const payload = {
         contents: [
           ...conversationHistory.map(h => ({
@@ -788,19 +799,17 @@
       let delay = 1000;
       const maxRetries = 5;
 
-      // Fix endpoints url typo to point to official Google AI api service
-      const correctedUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey}`;
-
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const response = await fetch(correctedUrl, {
+          const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
 
           if (!response.ok) {
-            throw new Error(`API error: Status ${response.status}`);
+            const errorDetails = await response.text().catch(() => "Unknown Server Details");
+            throw new Error(`HTTP Error Status: ${response.status} - Details: ${errorDetails}`);
           }
 
           const data = await response.json();
@@ -808,13 +817,12 @@
           if (responseText) {
             return responseText;
           } else {
-            throw new Error("Empty model content package");
+            throw new Error("Empty response from Google backend");
           }
         } catch (error) {
           if (attempt === maxRetries) {
-            throw error; // All attempts failed
+            throw error;
           }
-          // Exponential backoff wait
           await new Promise(resolve => setTimeout(resolve, delay));
           delay *= 2;
         }
@@ -829,19 +837,15 @@
       const userText = input.value.trim();
       if (!userText) return;
 
-      // Reset text field
       input.value = "";
       input.style.height = "auto";
 
-      // Visuals
       appendMessage('user', userText);
       const typingIndicator = document.getElementById("typingIndicator");
       typingIndicator.classList.remove("hidden");
 
-      // Set up Cat-system guidelines
       const baseSystemPrompt = personalities[currentPersonality].prompt;
       
-      // Craft meow injection rules based on Feline Vocabulary slider percentage
       let vocabularyInstruction = "";
       if (meowPercentage > 80) {
         vocabularyInstruction = "CRITICAL METRIC: You must translate 90% of your response into 'Meow meow' variants, only adding small hints of context in parentheses so the user can understand. Example: 'Meow, meow meow! (That's physically impossible)'.";
@@ -856,14 +860,11 @@
       try {
         const aiResponse = await callGeminiAPI(finalSystemPrompt, userText);
         
-        // Hide loader
         typingIndicator.classList.add("hidden");
 
-        // Sound effect on receive
         meowSound(300);
         setTimeout(() => meowSound(420), 120);
 
-        // Append response and save history limit to 10 pairs
         appendMessage('model', aiResponse);
         conversationHistory.push({ role: 'user', text: userText });
         conversationHistory.push({ role: 'model', text: aiResponse });
@@ -872,8 +873,13 @@
         }
       } catch (err) {
         typingIndicator.classList.add("hidden");
-        // Friendly cat themed failure state UI box
-        appendMessage('model', "*Hisses!* 😾 It seems the Cat-mputer network cables are being chewed on by some mice. Please check your connection and click send again! (Error: No response from feline cluster)");
+        
+        const friendlyErrorMsg = `*Hisses!* 😾 It seems the Cat-mputer network cables are being chewed on by some mice.\n\n` +
+          `**Debug Log Detail for care taker:**\n` +
+          `${err.message || err}\n\n` +
+          `*Action Plan:* Double check your custom API Key in the sidebar, ensure it has permissions for Gemini 2.5 Flash, and try sending again!`;
+        
+        appendMessage('model', friendlyErrorMsg);
       }
     }
   </script>
