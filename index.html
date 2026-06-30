@@ -155,6 +155,15 @@
               Slide to the right to inject pure meows. Left for elegant cat-themed intelligence.
             </p>
           </div>
+
+          <!-- API Key Settings Section (Fallback Friendly) -->
+          <div class="space-y-2 pt-3 border-t border-slate-100 dark:border-zinc-800">
+            <label class="text-xs font-semibold text-slate-600 dark:text-zinc-400 flex justify-between items-center">
+              <span>Custom API Key (Optional)</span>
+              <span class="text-[10px] text-slate-400 font-normal">Defaults to Canvas Key</span>
+            </label>
+            <input type="password" id="customApiKeyInput" placeholder="Enter custom AI Studio Key..." class="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-cat-100 dark:border-zinc-800 rounded-lg outline-none focus:border-cat-400 dark:focus:border-cat-500 transition-all text-slate-700 dark:text-zinc-300">
+          </div>
         </div>
 
         <!-- Feeding & Care Center (Interactive Widget) -->
@@ -351,7 +360,7 @@
   <!-- Audio Context and Script Integration -->
   <script>
     // System variables provided by the environment
-    const apiKey = ""; // Runtime automatically provisions this API Key
+    const apiKey = ""; // Keep empty to allow auto-provisioning of the verified Canvas key at runtime
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
     // State
@@ -472,6 +481,7 @@
       }
     }
 
+    // Setup Event Log Output
     function logAction(msg) {
       const logs = [
         document.getElementById("actionLog"),
@@ -593,6 +603,15 @@
           }
         });
       }
+
+      // Synchronize Desktop and Mobile API Inputs
+      const desktopKeyInput = document.getElementById("customApiKeyInput");
+      if (desktopKeyInput) {
+        desktopKeyInput.addEventListener("input", (e) => {
+          const mInput = document.getElementById("customApiKeyInput-mobile");
+          if (mInput) mInput.value = e.target.value;
+        });
+      }
     }
 
     // Sync content to mobile drawer to prevent duplicate UI code maintenance
@@ -604,7 +623,8 @@
         .replace(/id="vocabularyLabel"/g, 'id="vocabularyLabel-mobile"')
         .replace(/id="actionLog"/g, 'id="actionLog-mobile"')
         .replace(/id="interactionCounter"/g, 'id="interactionCounter-mobile"')
-        .replace(/id="newChatBtn"/g, 'id="newChatBtn-mobile"');
+        .replace(/id="newChatBtn"/g, 'id="newChatBtn-mobile"')
+        .replace(/id="customApiKeyInput"/g, 'id="customApiKeyInput-mobile"');
       
       const target = document.getElementById("drawerInsertionPoint");
       if (target) {
@@ -621,6 +641,14 @@
             if (dSlider) dSlider.value = meowPercentage;
             const dLabel = document.getElementById("vocabularyLabel");
             if (dLabel) dLabel.textContent = `${meowPercentage}% Meow`;
+          });
+        }
+
+        const mobileKeyInput = document.getElementById("customApiKeyInput-mobile");
+        if (mobileKeyInput) {
+          mobileKeyInput.addEventListener("input", (e) => {
+            const dInput = document.getElementById("customApiKeyInput");
+            if (dInput) dInput.value = e.target.value;
           });
         }
       }
@@ -728,7 +756,7 @@
         // Inline math
         .replace(/\$(.*?)\$/g, '<code class="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-xs font-mono">$1</code>')
         // Italic tags
-        .replace(/\*(.*?)\*/g, '<em class="italic text-slate-500 dark:text-zinc-400">$1</em>')
+        .replace(/\*(.*?)\*[^\*]/g, '<em class="italic text-slate-500 dark:text-zinc-400">$1</em>')
         // List formatting bullet injection
         .replace(/^\s*-\s+(.*)$/gmi, '• $1');
 
@@ -737,7 +765,11 @@
 
     // Call API with backoff retries
     async function callGeminiAPI(systemPrompt, userQuery) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+      // Prioritize the user's customized input key, fallback to the environment's auto-provisioned apiKey variable
+      const customKey = document.getElementById("customApiKeyInput")?.value?.trim();
+      const activeApiKey = customKey || apiKey;
+
+      const url = `https://generGenerativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey}`;
       
       // Assemble the system dynamic cat behaviors to inject in payload
       const payload = {
@@ -756,9 +788,12 @@
       let delay = 1000;
       const maxRetries = 5;
 
+      // Fix endpoints url typo to point to official Google AI api service
+      const correctedUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey}`;
+
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const response = await fetch(url, {
+          const response = await fetch(correctedUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
